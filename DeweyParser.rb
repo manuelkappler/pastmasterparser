@@ -321,13 +321,4 @@ class Section
 end
 
 
-book = Book.new(ARGV[0], ARGV[1])
-puts book
-#cur_vol = Nokogiri::HTML(open("TheoryOfValuation.html"))
-
-#cur_vol = Nokogiri::HTML(open("#{base_uri}#{doc.css(".unselectedVolume")[5].children[0].attributes['href'].value}"))
-
-#chapter_title = vol_title.
-
-#content = cur_vol.xpath("//div[contains(@id, 'article_content')]")
-#puts content.xpath("//h4").text
+Book.new(ARGV[0], ARGV[1])
