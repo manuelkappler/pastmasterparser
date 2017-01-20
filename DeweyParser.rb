@@ -221,8 +221,12 @@ class Section
       ref.next_element.remove
       #puts ref.parent.name
       if ref[:name][-1] == 'r'
-        endnote = "[^#{ref[:name].gsub(/r\z/, 'a')}]"
-        ref.replace("#{endnote}: #{ref.parent.text}")
+        if ["hang pad", "hang"].include? ref.parent['class']
+          ref.parent.replace("Endnote included in running text as footnote.\n\n")
+        else
+          endnote = "[^#{ref[:name].gsub(/r\z/, 'a')}]"
+          ref.replace("#{endnote}: #{ref.parent.text}")
+        end
       elsif ref['name'][-1] == 'a'
         endnote = "[^#{ref[:name]}]"
         if ["h1", "h2", "h3", "h4"].include? ref.parent.name
@@ -301,14 +305,25 @@ class Section
     for p in paragraphs
       begin
         if p['class'] == "tbindent"
-          p.replace("\n\n #{p.text.strip}")
+          p.replace("\n\n#{advanced_strip(text)}")
+        elsif p['class'] == "block"
+          p.replace("\n#{p.text.split("\n").map{|x| "| " + advanced_strip(x) + "\n"}.join}\n")
+        elsif p['class'] == "center"
+          p.replace("#{advanced_strip(p.text)}\n\n")
         else
-          p.replace(p.text.strip)
+          p.replace("#{advanced_strip(p.text)}\n\n")
         end
       rescue
-        p.replace(p.text.strip)
+        p.replace(advanced_strip(p.text))
       end
     end
+  end
+
+  def advanced_strip x
+    puts x
+    x = x.gsub(/\A[[:space:]]*/, '').gsub(/[[:space:]]*\z/, '')
+    puts x
+    return x
   end
 
 end
