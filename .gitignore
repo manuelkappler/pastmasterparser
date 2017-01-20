@@ -1,3 +1,21 @@
+# Ignore markdown files
+*.md
+
+# Ignore PDFs
+*.pdf
+
+# Ignore HTML files
+*.html
+
+# Ignore LaTeX related files
+*.tex
+*.aux
+*.log
+*.toc
+*.out
+*.upa
+*.upb
+
 *.gem
 *.rbc
 /.config
