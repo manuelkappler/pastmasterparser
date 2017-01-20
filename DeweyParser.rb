@@ -245,13 +245,6 @@ class Section
       #puts pn.parent
       pn.parent.replace(" **(#{number})** ")
     end
-    # puts("Stripping footnotes")
-    #nondisplay = @noko.xpath("//span[contains(@style, 'display: none')]")
-    #for nd in nondisplay
-    #  #puts nd
-    #  nd.remove
-    #end
-
 
 # Formatting
     # Italics
