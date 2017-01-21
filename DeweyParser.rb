@@ -130,8 +130,7 @@ class Book
   end
 
   def generate_preamble
-    return """
----
+    return """---
 title: \"#{/Volume.*/.match(@volume_title)}\"
 subtitle: \"#{/(?<series>.*)\. Volume/.match(@volume_title)[:series]} in #{@collection_title}\"
 author: \"#{@author[:first]} #{@author[:last]}\"
@@ -254,6 +253,7 @@ class Section
     # Italics
     puts("Parsing formatting")
     @noko.xpath("//i").each{|i| i.replace("*#{i.text}*")}
+    @noko.xpath("//b").each{|b| b.replace("**#{b.text}**")}
     # Linebreaks
     puts("Stripping linebreaks")
     breaks = @noko.xpath("//br")
@@ -276,7 +276,7 @@ class Section
     puts("Parsing headers")
     titles = @noko.xpath("//h4[contains(@class, 'normal')]")
     titles.each_with_index do |h4, index|
-      text = h4.text.gsub("\n", '')
+      text = h4.text.strip.gsub("\n", '')
       if index == 0
         # Handle long chapter headings (for PDF Header)
         # If the heading without footnotes is longer than 40 characters
@@ -301,29 +301,33 @@ class Section
 
 #Strip paragraphs
     puts("Stripping paragraphs")
-    paragraphs = @noko.xpath("//p")
-    for p in paragraphs
-      begin
-        if p['class'] == "tbindent"
-          p.replace("\n\n#{advanced_strip(text)}")
-        elsif p['class'] == "block"
-          p.replace("\n#{p.text.split("\n").map{|x| "| " + advanced_strip(x) + "\n"}.join}\n")
-        elsif p['class'] == "center"
-          p.replace("#{advanced_strip(p.text)}\n\n")
-        else
-          p.replace("#{advanced_strip(p.text)}\n\n")
-        end
-      rescue
-        p.replace(advanced_strip(p.text))
-      end
+    content_paragraphs = @noko.xpath("//p[contains(@class, 'tbindent')]")
+    for p in content_paragraphs
+      p.replace("\n\n#{p.text.strip}")
+    end
+    block_paragraphs = @noko.xpath("//p[contains(@class, 'block')]")
+    for p in block_paragraphs
+      p.replace("\n\n#{p.text.split("\n").map{|x| "| " + advanced_strip(x) + "\n"}.join}\n")
+    end
+    center_paragraphs = @noko.xpath("//p[contains(@class, 'center')]")
+    for p in center_paragraphs
+      p.replace("\n\n#{p.text.strip}")
+    end
+    # normal paragraphs
+    @noko.xpath("//p[contains(@class, 'normal')]").each{|n| n.replace("\n\n#{n.text.strip}")}
+    # spacer paragraphs
+    @noko.xpath("//p[contains(@class, 'spacer')]").each{|s| s.remove}
+    # hang paragraphs
+    @noko.xpath("//p[contains(@class, 'hang')]").each{|h| h.replace("\n\n#{h.text.strip}")}
+    
+    remaining_paragraphs = @noko.xpath("//p")
+    for p in remaining_paragraphs
+      puts p
     end
   end
 
   def advanced_strip x
-    puts x
-    x = x.gsub(/\A[[:space:]]*/, '').gsub(/[[:space:]]*\z/, '')
-    puts x
-    return x
+    return x.gsub!(/\A[[:space:]]*/, '').gsub!(/[[:space:]]*\z/, '')
   end
 
 end
