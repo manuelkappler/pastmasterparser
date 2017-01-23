@@ -21,23 +21,28 @@ class Book
     url = "#{BASE_URI}view?docId=dewey_ii/dewey_ii.#{(running_volume_number).to_s.rjust(2, '0')}.xml;chunk_id=div.mw.100.1;toc.depth=1"
     puts url
      
+    Dir.mkdir("#{period}#{volume}") unless Dir.exists? "#{period}#{volume}"
+    
+    Dir.chdir("#{period}#{volume}") do
     # Download the HTML file only if it doesn't exist yet 
-    begin
-      file = open("#{period}.#{volume}.html", 'r')
-    rescue
+    
       begin
-        puts "File not yet downloaded. Starting download"
-        file = open("#{period}.#{volume}.html", 'w')
-        download = open(url)
-        file.write(download.read)
         file = open("#{period}.#{volume}.html", 'r')
       rescue
-        # TODO: Better error handling
-        puts "something went wrong downloading the file"
+        begin
+          puts "File not yet downloaded. Starting download"
+          file = open("#{period}.#{volume}.html", 'w')
+          download = open(url)
+          file.write(download.read)
+          file = open("#{period}.#{volume}.html", 'r')
+        rescue
+          # TODO: Better error handling
+          puts "something went wrong downloading the file"
+        end
       end
+      # Now that we have the HTML file, create the Nokogiri tree
+      @html = file.read
     end
-    # Now that we have the HTML file, create the Nokogiri tree
-    @html = file.read
     @noko = Nokogiri::HTML(@html)
     # This selects the Volume in the TOC tree (on the left) from which we get the individual pages
     @volume = @noko.css(".selectedVolume")[0]
@@ -105,19 +110,21 @@ class Book
     chapters.each do |filename, url|
       puts "Downloading section #{filename} at #{url}"
       puts "#{BASE_URI}#{url}"
-      begin
-        file = open("#{period}_#{volume}__#{filename}.html", 'r')
-        puts "File already dowloaded. Skipping"
-      rescue
-        puts "File not downloaded yet. Downloading"
-        file = open("#{period}_#{volume}__#{filename}.html", 'w')
+      Dir.chdir("#{period}#{volume}") do
         begin
-          download = open("#{BASE_URI}#{url}")
+          file = open("#{period}_#{volume}__#{filename}.html", 'r')
+          puts "File already dowloaded. Skipping"
         rescue
-          puts "Fatal Error: could not download #{BASE_URI}#{url}"
-          raise "Download Error"
+          puts "File not downloaded yet. Downloading"
+          file = open("#{period}_#{volume}__#{filename}.html", 'w')
+          begin
+            download = open("#{BASE_URI}#{url}")
+          rescue
+            puts "Fatal Error: could not download #{BASE_URI}#{url}"
+            raise "Download Error"
+          end
+          file.write(download.read)
         end
-        file.write(download.read)
       end
 
     puts "Parsing and appending new section for #{filename}"
@@ -158,19 +165,21 @@ class Section
     @period = period
     @volume = volume
     @section_name = name
-    @noko = Nokogiri::HTML(file)
-    strip_content
-    file = "#{@period}_#{@volume}_#{@section_name}_parsed.md"
-    wfile = open(file, 'w')
-    content = @noko.xpath("//div[contains(@id, 'article_content')]").to_html
-# Do some last-minute regex on the document
-    # Merge footnotes that are immediately subsequent to each other
-    @content = content.gsub(/\^\[(?<fn1>.*)\]\^\[(?<fn2>.*)\]/, '^[\k<fn1> **consecutive footnote merged**: \k<fn2>]')
-    # Remove any leftover divs
-    @content = @content.gsub(/(<div.*>|<\\div>)/, '')
-    #puts @content.slice(0, 200)
-    wfile.write(@content)
-    wfile.close
+    Dir.chdir("#{period}#{volume}") do
+      @noko = Nokogiri::HTML(file)
+      strip_content
+      file = "#{@period}_#{@volume}_#{@section_name}_parsed.md"
+      wfile = open(file, 'w')
+      content = @noko.xpath("//div[contains(@id, 'article_content')]").to_html
+  # Do some last-minute regex on the document
+      # Merge footnotes that are immediately subsequent to each other
+      @content = content.gsub(/\^\[(?<fn1>.*)\]\^\[(?<fn2>.*)\]/, '^[\k<fn1> **consecutive footnote merged**: \k<fn2>]')
+      # Remove any leftover divs
+      @content = @content.gsub(/(<div.*>|<\\div>)/, '')
+      #puts @content.slice(0, 200)
+      wfile.write(@content)
+      wfile.close
+    end
   end
 
   def strip_content
