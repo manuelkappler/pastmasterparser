@@ -112,6 +112,7 @@ class Book
     chapters.each do |filename, url|
       puts "Downloading section #{filename} at #{url}"
       puts "#{BASE_URI}#{url}"
+      file = nil
       Dir.chdir("#{period}#{volume}") do
         begin
           file = open("#{period}_#{volume}__#{filename}.html", 'r')
@@ -127,10 +128,10 @@ class Book
           end
           file.write(download.read)
         end
-      end
 
-    puts "Parsing and appending new section for #{filename}"
-    structure << Section.new(period, volume, filename, file)
+      end
+      puts "Parsing and appending new section for #{filename}"
+      structure << Section.new(period, volume, filename, file)
 
     end
 
@@ -204,12 +205,12 @@ class Section
       }
       if span.xpath("ancestor::h2|ancestor::h4").length > 0
         heading = span.xpath("ancestor::h2|ancestor::h4")
-        puts heading.text
+        # puts heading.text
         new_node = Nokogiri::XML::Node.new "text", @noko
         new_node.content = "^[#{text.join(" ").gsub(/\n/, ' ')}]"
         heading.children[-1].add_next_sibling new_node
         span.remove
-        puts heading.text
+        # puts heading.text
       else
         span.replace("^[#{text.join(" ").gsub(/\n/, ' ')}]")
       end
@@ -231,14 +232,16 @@ class Section
       ref.next_element.remove
       #puts ref.parent.name
       if ref[:name][-1] == 'r'
+        # If refs are in Endmatter
         if ["hang pad", "hang"].include? ref.parent['class']
           ref.parent.replace("Endnote included in running text as footnote.\n\n")
         else
-          endnote = "[^#{ref[:name].gsub(/r\z/, 'a')}]"
+          endnote = "[^#{ref[:name].gsub(/\..{1,2}\z/, '')}]"
           ref.replace("#{endnote}: #{ref.parent.text}")
         end
+        # If ref is in body
       elsif ref['name'][-1] == 'a'
-        endnote = "[^#{ref[:name]}]"
+        endnote = "[^#{ref[:name].gsub(/\..{1,2}/, '')}]"
         if ["h1", "h2", "h3", "h4"].include? ref.parent.name
           #puts ref.parent.inspect
           ref.parent.text.replace(ref.parent.text + endnote)
@@ -330,6 +333,8 @@ class Section
     @noko.xpath("//p[contains(@class, 'spacer')]").each{|s| s.remove}
     # hang paragraphs
     @noko.xpath("//p[contains(@class, 'hang')]").each{|h| h.replace("\n\n#{h.text.strip}")}
+    # indented paragraphs
+    @noko.xpath("//p[contains(@class, 'indent_')]").each{|h| puts h.text; puts (/indent_(?<ind>\d{1,2})em/.match(h['class'])[:ind].to_i); text = "\n\n|    #{'  ' * (/indent_(?<ind>\d{1,2})em/.match(h['class'])[:ind].to_i / 2)} #{h.text}"; puts text; h.replace(text)}
     
     remaining_paragraphs = @noko.xpath("//p")
     for p in remaining_paragraphs
